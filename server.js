@@ -32,10 +32,41 @@ app.get('/api/routes', async (req, res) => {
     }
 
     const data = await response.json();
-    if (data.records && data.records[0]) 
-	console.log('Fields:', JSON.stringify(Object.keys(data.records[0].fields)));
-
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── WEATHER PROXY ───────────────────────────────────────────────────────────
+app.get('/api/weather', async (req, res) => {
+  const { lat, lon } = req.query;
+  const key = process.env.WEATHER_API_KEY;
+
+  if (!key) return res.status(500).json({ error: 'Missing weather API key' });
+  if (!lat || !lon) return res.status(400).json({ error: 'Missing lat/lon' });
+
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${key}&units=metric&cnt=8`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok) return res.status(response.status).json(data);
+
+    // Get tomorrow's forecast (first entries ~24hrs ahead)
+    const tomorrow = data.list.slice(2, 6);
+    const temps = tomorrow.map(f => f.main.temp);
+    const rain = tomorrow.some(f => f.rain || f.weather[0].main === 'Rain');
+    const desc = tomorrow[0]?.weather[0]?.description || 'unknown';
+    const wind = Math.max(...tomorrow.map(f => f.wind.speed)) * 3.6; // m/s to km/h
+
+    res.json({
+      temp_min: Math.round(Math.min(...temps)),
+      temp_max: Math.round(Math.max(...temps)),
+      rain_expected: rain,
+      description: desc,
+      wind_kmh: Math.round(wind)
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

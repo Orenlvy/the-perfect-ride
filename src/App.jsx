@@ -682,7 +682,16 @@ const LOADING_STEPS = [
   "Ranking best matches for your profile",
 ];
 
-// ─── API CONFIG ──────────────────────────────────────────────────────────────
+async function fetchWeatherForRoute(lat, lon) {
+  try {
+    const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
+    const data = await res.json();
+    if (data.error) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 // Time → distance range mapping based on Oren's riding pace
 const TIME_TO_DISTANCE = {
@@ -747,6 +756,8 @@ async function fetchRoutesFromAirtable(selections) {
     elevation: Math.round(parseFloat(r['Elevation Gain']) || 0),
     region: r['Region'] || 'Unknown',
     dryDays: r['Dry Days Required'] || 3,
+    lat: r['Start Latitude'],
+    lon: r['Start Longitude'],
     weather: '⏳ Checking...',
     trailStatus: 'good',
     trailLabel: 'Conditions checking...',
@@ -893,7 +904,29 @@ export default function App() {
         setScreen("questionnaire");
         return;
       }
-      setResults(routes);
+
+      // Enrich with weather data
+      const routesWithWeather = await Promise.all(routes.map(async (route) => {
+        if (!route.lat || !route.lon) return route;
+        const weather = await fetchWeatherForRoute(route.lat, route.lon);
+        if (!weather) return route;
+
+        const rainWarn = weather.rain_expected;
+        const dryOk = !rainWarn;
+        const weatherEmoji = rainWarn ? '🌧️' : weather.temp_max > 28 ? '☀️' : weather.temp_max > 18 ? '⛅' : '🌤️';
+
+        return {
+          ...route,
+          weather: `${weatherEmoji} ${weather.temp_min}–${weather.temp_max}°C`,
+          trailStatus: dryOk ? 'good' : 'caution',
+          trailLabel: rainWarn
+            ? `Rain expected — trails may be wet`
+            : `Dry conditions — trails ready`,
+          reason: `${route.reason} Wind: ${weather.wind_kmh} km/h. ${rainWarn ? '⚠ Rain expected tomorrow.' : '✓ Good weather window.'}`
+        };
+      }));
+
+      setResults(routesWithWeather);
       setScreen("results");
     } catch (err) {
       setError("Could not load routes. Please try again.");

@@ -682,45 +682,84 @@ const LOADING_STEPS = [
   "Ranking best matches for your profile",
 ];
 
-// Mock results for demo
-const MOCK_RESULTS = [
-  {
-    rank: 1,
-    name: "Carmel Ridge — Muhraka Loop",
-    distance: 52,
-    elevation: 980,
-    region: "Carmel",
-    weather: "☀️ 18°C",
-    trailStatus: "good",
-    trailLabel: "Trails dry — 5 days since rain",
-    reason: "Perfectly matched to your 3–4hr window and climbing appetite. Carmel has been dry for 5 days — prime singletrack conditions. Your Strava avg suggests a comfortable 3.5hr completion.",
-    gpx: "#"
-  },
-  {
-    rank: 2,
-    name: "Wadi Ara — Samaria Singletracks",
-    distance: 44,
-    elevation: 720,
-    region: "Samaria / Gilboa",
-    weather: "🌤️ 20°C",
-    trailStatus: "good",
-    trailLabel: "Trails ready",
-    reason: "Strong singletrack density, slightly shorter for a comfortable pace. Good alternative if you want to stay closer to home base.",
-    gpx: "#"
-  },
-  {
-    rank: 3,
-    name: "Alon Hagalil — Northern Loop",
-    distance: 61,
-    elevation: 1100,
-    region: "Alon Hagalil",
-    weather: "⛅ 15°C",
-    trailStatus: "caution",
-    trailLabel: "Borderline — 3 days since rain",
-    reason: "Great route but trail conditions are borderline. Worth checking Strava segments for recent activity before committing.",
-    gpx: "#"
-  }
-];
+// ─── AIRTABLE CONFIG ─────────────────────────────────────────────────────────
+const AIRTABLE_TOKEN = import.meta.env.VITE_AIRTABLE_TOKEN;
+const AIRTABLE_BASE_ID = import.meta.env.VITE_AIRTABLE_BASE_ID;
+const AIRTABLE_TABLE = 'tblXAvmhs1lWNIXCv';
+
+// Time → distance range mapping based on Oren's riding pace
+const TIME_TO_DISTANCE = {
+  "1.5-2": { min: 20, max: 38 },
+  "2-3":   { min: 35, max: 58 },
+  "3-4":   { min: 55, max: 78 },
+  "4+":    { min: 75, max: 999 },
+};
+
+// Elevation gain thresholds for climbing preference
+const CLIMB_FILTER = {
+  "flat":     { max: 500 },
+  "moderate": { min: 400, max: 900 },
+  "beast":    { min: 800 },
+};
+
+async function fetchRoutesFromAirtable(selections) {
+  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}?pageSize=100`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
+  });
+  const data = await res.json();
+  if (!data.records) return [];
+
+  const distRange = TIME_TO_DISTANCE[selections.time] || { min: 0, max: 999 };
+  const climbRange = CLIMB_FILTER[selections.climbing] || {};
+
+  // Filter routes based on selections
+  let routes = data.records
+    .map(r => r.fields)
+    .filter(r => {
+      const dist = parseFloat(r['Distance (km)']) || 0;
+      const elev = parseFloat(r['Elevation Gain (m)']) || 0;
+      const region = r['Region'] || '';
+
+      // Distance filter
+      if (dist < distRange.min || dist > distRange.max) return false;
+
+      // Climbing filter
+      if (climbRange.max && elev > climbRange.max) return false;
+      if (climbRange.min && elev < climbRange.min) return false;
+
+      // Area filter
+      if (selections.area !== 'No Preference' && region !== selections.area) return false;
+
+      // Exclude international routes
+      if (region === 'International') return false;
+
+      return true;
+    });
+
+  // Sort by best match — closest to middle of distance range
+  const targetDist = (distRange.min + distRange.max) / 2;
+  routes.sort((a, b) => {
+    const aDiff = Math.abs((parseFloat(a['Distance (km)']) || 0) - targetDist);
+    const bDiff = Math.abs((parseFloat(b['Distance (km)']) || 0) - targetDist);
+    return aDiff - bDiff;
+  });
+
+  // Return top 3 as ranked results
+  return routes.slice(0, 3).map((r, i) => ({
+    rank: i + 1,
+    name: r['Route Name'] || r['File Name'] || 'Unnamed Route',
+    distance: Math.round(parseFloat(r['Distance (km)']) || 0),
+    elevation: Math.round(parseFloat(r['Elevation Gain (m)']) || 0),
+    region: r['Region'] || 'Unknown',
+    dryDays: r['Dry Days Required'] || 3,
+    weather: '⏳ Checking...',
+    trailStatus: 'good',
+    trailLabel: 'Conditions checking...',
+    reason: `Matched to your ${selections.time}hr window. ${r['Region']} region — ${Math.round(parseFloat(r['Distance (km)']) || 0)}km with ${Math.round(parseFloat(r['Elevation Gain (m)']) || 0)}m elevation gain.`,
+    gpx: r['GPX File Link'] || '#'
+  }));
+}
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────────────
 
@@ -828,7 +867,7 @@ function RouteCard({ route, index }) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [screen, setScreen] = useState("questionnaire"); // questionnaire | loading | results
+  const [screen, setScreen] = useState("questionnaire");
   const [selections, setSelections] = useState({
     time: null,
     terrain: null,
@@ -836,6 +875,8 @@ export default function App() {
     group: null,
     area: "No Preference",
   });
+  const [results, setResults] = useState([]);
+  const [error, setError] = useState(null);
 
   const completedCount = [
     selections.time,
@@ -848,13 +889,28 @@ export default function App() {
 
   const canSubmit = selections.time && selections.terrain && selections.climbing && selections.group;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setScreen("loading");
-    setTimeout(() => setScreen("results"), 5000);
+    setError(null);
+    try {
+      const routes = await fetchRoutesFromAirtable(selections);
+      if (routes.length === 0) {
+        setError("No routes found matching your preferences. Try adjusting your filters.");
+        setScreen("questionnaire");
+        return;
+      }
+      setResults(routes);
+      setScreen("results");
+    } catch (err) {
+      setError("Could not load routes. Please try again.");
+      setScreen("questionnaire");
+    }
   };
 
   const handleRestart = () => {
     setSelections({ time: null, terrain: null, climbing: null, group: null, area: "No Preference" });
+    setResults([]);
+    setError(null);
     setScreen("questionnaire");
   };
 
@@ -978,15 +1034,22 @@ export default function App() {
           {/* LOADING */}
           {screen === "loading" && <LoadingScreen />}
 
+          {/* ERROR */}
+          {error && (
+            <div style={{ color: '#FFB432', background: 'rgba(255,180,50,0.1)', border: '1px solid rgba(255,180,50,0.3)', borderRadius: 12, padding: '16px 20px', marginBottom: 16, fontSize: 14 }}>
+              ⚠ {error}
+            </div>
+          )}
+
           {/* RESULTS */}
           {screen === "results" && (
             <div className="results-screen">
               <div className="results-header">
-                <div className="results-badge">Tomorrow's Recommendation</div>
+                <div className="results-badge">Today's Recommendation</div>
                 <div className="results-title">Your Perfect Rides</div>
               </div>
 
-              {MOCK_RESULTS.map((route, i) => (
+              {results.map((route, i) => (
                 <RouteCard key={route.rank} route={route} index={i} />
               ))}
 

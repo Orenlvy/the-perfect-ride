@@ -792,9 +792,9 @@ async function fetchRoutesFromAirtable(selections) {
       // Distance filter
       if (dist < distRange.min || dist > distRange.max) return false;
 
-      // Climbing filter
-      if (climbRange.max && elev > climbRange.max) return false;
-      if (climbRange.min && elev < climbRange.min) return false;
+      // Climbing filter — only apply if selected
+      if (selections.climbing && climbRange.max && elev > climbRange.max) return false;
+      if (selections.climbing && climbRange.min && elev < climbRange.min) return false;
 
       // Area filter — empty array = no preference
       if (selections.area.length > 0 && !selections.area.includes(region)) return false;
@@ -971,7 +971,7 @@ export default function App() {
 
   const progress = (completedCount / 3) * 100;
 
-  const canSubmit = selections.time && selections.terrain && selections.climbing;
+  const canSubmit = selections.time;
 
   const handleSubmit = async () => {
     setScreen("loading");
@@ -1227,7 +1227,7 @@ export default function App() {
                 >
                   🚴 FIND MY PERFECT RIDE
                   <span className="btn-sub">
-                    {canSubmit ? "Analysing weather, trails & your profile" : "Complete all questions above"}
+                    {canSubmit ? "Analysing weather, trails & your profile" : "Select a time window to continue"}
                   </span>
                 </button>
               </div>

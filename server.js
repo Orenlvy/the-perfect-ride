@@ -13,6 +13,7 @@ app.use(express.json());
 // ─── AIRTABLE PROXY ───────────────────────────────────────────────────────────
 app.get('/api/routes', async (req, res) => {
   const token = process.env.AIRTABLE_TOKEN;
+  console.log('Token starts with:', token ? token.substring(0, 10) : 'MISSING');
   const baseId = process.env.AIRTABLE_BASE_ID;
   const tableId = 'tblXAvmhs1lWNIXCv';
 

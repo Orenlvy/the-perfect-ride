@@ -38,39 +38,59 @@ app.get('/api/routes', async (req, res) => {
   }
 });
 
-// ─── WEATHER PROXY ───────────────────────────────────────────────────────────
+// ─── WEATHER PROXY (Open-Meteo) ──────────────────────────────────────────────
 app.get('/api/weather', async (req, res) => {
   const { lat, lon } = req.query;
-  const key = process.env.WEATHER_API_KEY;
-
-  if (!key) return res.status(500).json({ error: 'Missing weather API key' });
   if (!lat || !lon) return res.status(400).json({ error: 'Missing lat/lon' });
 
   try {
-    const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${key}&units=metric&cnt=8`;
+    // Get yesterday's date and 2 days before
+    const today = new Date();
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const twoDaysAgo = new Date(today); twoDaysAgo.setDate(today.getDate() - 2);
+    const threeDaysAgo = new Date(today); threeDaysAgo.setDate(today.getDate() - 3);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+
+    const fmt = d => d.toISOString().split('T')[0];
+
+    // Historical + forecast in one call
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode` +
+      `&start_date=${fmt(threeDaysAgo)}&end_date=${fmt(tomorrow)}` +
+      `&timezone=Asia/Jerusalem`;
+
     const response = await fetch(url);
     const data = await response.json();
 
-    if (!response.ok) return res.status(response.status).json(data);
+    if (!data.daily) return res.status(500).json({ error: 'No weather data' });
 
-    // Get tomorrow's forecast (first entries ~24hrs ahead)
-    const tomorrow = data.list.slice(2, 6);
-    const temps = tomorrow.map(f => f.main.temp);
-    const rain = tomorrow.some(f => 
-      (f.rain && f.rain['3h'] > 0.5) || 
-      f.weather[0].main === 'Rain' || 
-      f.weather[0].main === 'Thunderstorm'
-    );
-    const desc = tomorrow[0]?.weather[0]?.description || 'unknown';
-    const wind = Math.max(...tomorrow.map(f => f.wind.speed)) * 3.6; // m/s to km/h
+    const dates = data.daily.time;
+    const maxTemps = data.daily.temperature_2m_max;
+    const minTemps = data.daily.temperature_2m_min;
+    const precip = data.daily.precipitation_sum;
+    const codes = data.daily.weathercode;
 
-    res.json({
-      temp_min: Math.round(Math.min(...temps)),
-      temp_max: Math.round(Math.max(...temps)),
-      rain_expected: rain,
-      description: desc,
-      wind_kmh: Math.round(wind)
-    });
+    const getDay = (dateStr) => {
+      const i = dates.indexOf(dateStr);
+      if (i === -1) return null;
+      return {
+        date: dateStr,
+        temp_max: Math.round(maxTemps[i]),
+        temp_min: Math.round(minTemps[i]),
+        rain_mm: Math.round(precip[i] * 10) / 10,
+        code: codes[i]
+      };
+    };
+
+    const history = [
+      getDay(fmt(threeDaysAgo)),
+      getDay(fmt(twoDaysAgo)),
+      getDay(fmt(yesterday))
+    ].filter(Boolean);
+
+    const tomorrowData = getDay(fmt(tomorrow));
+
+    res.json({ history, tomorrow: tomorrowData });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

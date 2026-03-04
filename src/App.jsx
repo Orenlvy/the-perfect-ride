@@ -862,6 +862,20 @@ function RouteCard({ route, index }) {
 
       <div className="route-reason">{route.reason}</div>
 
+      {route.historyText && (
+        <div style={{ marginTop: 10, fontSize: 12, color: '#555', borderTop: '1px solid #1A1A1A', paddingTop: 10 }}>
+          <div style={{ color: '#888', marginBottom: 4, fontWeight: 600, letterSpacing: 0.5 }}>LAST 3 DAYS</div>
+          <div style={{ color: '#666' }}>{route.historyText}</div>
+        </div>
+      )}
+
+      {route.tomorrowText && (
+        <div style={{ marginTop: 8, fontSize: 12, color: '#555' }}>
+          <div style={{ color: '#888', marginBottom: 4, fontWeight: 600, letterSpacing: 0.5 }}>TOMORROW</div>
+          <div style={{ color: '#D2A03C' }}>{route.tomorrowText}</div>
+        </div>
+      )}
+
       <a href={route.gpx} className="gpx-btn">
         ↓ Download GPX
       </a>
@@ -911,18 +925,31 @@ export default function App() {
         const weather = await fetchWeatherForRoute(route.lat, route.lon);
         if (!weather) return route;
 
-        const rainWarn = weather.rain_expected;
-        const dryOk = !rainWarn;
-        const weatherEmoji = rainWarn ? '🌧️' : weather.temp_max > 28 ? '☀️' : weather.temp_max > 18 ? '⛅' : '🌤️';
+        const t = weather.tomorrow;
+        const history = weather.history || [];
+
+        const rainTomorrow = t && t.rain_mm > 1;
+        const weatherEmoji = !t ? '❓' : rainTomorrow ? '🌧️' : t.temp_max > 28 ? '☀️' : t.temp_max > 18 ? '⛅' : '🌤️';
+
+        // Last 3 days summary
+        const historyText = history.map(d => {
+          const dayLabel = new Date(d.date).toLocaleDateString('en-IL', { weekday: 'short' });
+          const rainIcon = d.rain_mm > 1 ? '🌧️' : '☀️';
+          return `${dayLabel}: ${rainIcon} ${d.temp_min}–${d.temp_max}°C${d.rain_mm > 0 ? ` (${d.rain_mm}mm)` : ''}`;
+        }).join(' · ');
+
+        const tomorrowText = t
+          ? `${weatherEmoji} ${t.temp_min}–${t.temp_max}°C${t.rain_mm > 0 ? ` · ${t.rain_mm}mm rain` : ' · No rain'}`
+          : '⏳ Unavailable';
 
         return {
           ...route,
-          weather: `${weatherEmoji} ${weather.temp_min}–${weather.temp_max}°C`,
-          trailStatus: dryOk ? 'good' : 'caution',
-          trailLabel: rainWarn
-            ? `Rain expected — trails may be wet`
-            : `Dry conditions — trails ready`,
-          reason: `${route.reason} Wind: ${weather.wind_kmh} km/h. ${rainWarn ? '⚠ Rain expected tomorrow.' : '✓ Good weather window.'}`
+          weather: `${weatherEmoji} ${t ? `${t.temp_min}–${t.temp_max}°C` : ''}`,
+          trailStatus: rainTomorrow ? 'caution' : 'good',
+          trailLabel: rainTomorrow ? 'Rain expected — trails may be wet' : 'Dry conditions — trails ready',
+          historyText,
+          tomorrowText,
+          reason: route.reason
         };
       }));
 

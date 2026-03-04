@@ -711,8 +711,8 @@ async function fetchRoutesFromAirtable(selections) {
   let routes = data.records
     .map(r => r.fields)
     .filter(r => {
-      const dist = parseFloat(r['Distance (km)']) || 0;
-      const elev = parseFloat(r['Elevation Gain (m)']) || 0;
+      const dist = parseFloat(r['Distance']) || 0;
+      const elev = parseFloat(r['Elevation Gain']) || 0;
       const region = r['Region'] || '';
 
       // Distance filter
@@ -734,8 +734,8 @@ async function fetchRoutesFromAirtable(selections) {
   // Sort by best match — closest to middle of distance range
   const targetDist = (distRange.min + distRange.max) / 2;
   routes.sort((a, b) => {
-    const aDiff = Math.abs((parseFloat(a['Distance (km)']) || 0) - targetDist);
-    const bDiff = Math.abs((parseFloat(b['Distance (km)']) || 0) - targetDist);
+    const aDiff = Math.abs((parseFloat(a['Distance']) || 0) - targetDist);
+    const bDiff = Math.abs((parseFloat(b['Distance']) || 0) - targetDist);
     return aDiff - bDiff;
   });
 
@@ -743,14 +743,14 @@ async function fetchRoutesFromAirtable(selections) {
   return routes.slice(0, 3).map((r, i) => ({
     rank: i + 1,
     name: r['Route Name'] || r['File Name'] || 'Unnamed Route',
-    distance: Math.round(parseFloat(r['Distance (km)']) || 0),
-    elevation: Math.round(parseFloat(r['Elevation Gain (m)']) || 0),
+    distance: Math.round(parseFloat(r['Distance']) || 0),
+    elevation: Math.round(parseFloat(r['Elevation Gain']) || 0),
     region: r['Region'] || 'Unknown',
     dryDays: r['Dry Days Required'] || 3,
     weather: '⏳ Checking...',
     trailStatus: 'good',
     trailLabel: 'Conditions checking...',
-    reason: `Matched to your ${selections.time}hr window. ${r['Region']} region — ${Math.round(parseFloat(r['Distance (km)']) || 0)}km with ${Math.round(parseFloat(r['Elevation Gain (m)']) || 0)}m elevation gain.`,
+    reason: `Matched to your ${selections.time}hr window. ${r['Region']} region — ${Math.round(parseFloat(r['Distance']) || 0)}km with ${Math.round(parseFloat(r['Elevation Gain']) || 0)}m elevation gain.`,
     gpx: r['GPX File Link'] || '#'
   }));
 }

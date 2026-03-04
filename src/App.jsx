@@ -682,10 +682,7 @@ const LOADING_STEPS = [
   "Ranking best matches for your profile",
 ];
 
-// ─── AIRTABLE CONFIG ─────────────────────────────────────────────────────────
-const AIRTABLE_TOKEN = import.meta.env.VITE_AIRTABLE_TOKEN;
-const AIRTABLE_BASE_ID = import.meta.env.VITE_AIRTABLE_BASE_ID;
-const AIRTABLE_TABLE = 'tblXAvmhs1lWNIXCv';
+// ─── API CONFIG ──────────────────────────────────────────────────────────────
 
 // Time → distance range mapping based on Oren's riding pace
 const TIME_TO_DISTANCE = {
@@ -703,10 +700,7 @@ const CLIMB_FILTER = {
 };
 
 async function fetchRoutesFromAirtable(selections) {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE}?pageSize=100`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
-  });
+  const res = await fetch('/api/routes');
   const data = await res.json();
   if (!data.records) return [];
 

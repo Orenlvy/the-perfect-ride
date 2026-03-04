@@ -13,7 +13,6 @@ app.use(express.json());
 // ─── AIRTABLE PROXY ───────────────────────────────────────────────────────────
 app.get('/api/routes', async (req, res) => {
   const token = process.env.AIRTABLE_TOKEN;
-  console.log('Token starts with:', token ? token.substring(0, 10) : 'MISSING');
   const baseId = process.env.AIRTABLE_BASE_ID;
   const tableId = 'tblXAvmhs1lWNIXCv';
 
@@ -21,20 +20,20 @@ app.get('/api/routes', async (req, res) => {
     return res.status(500).json({ error: 'Missing Airtable credentials' });
   }
 
- try {
+  try {
     const url = `https://api.airtable.com/v0/${baseId}/${tableId}?pageSize=100`;
-    console.log('Calling:', url);
-    console.log('Token length:', token.length);
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    console.log('Airtable status:', response.status);
-    const text = await response.text();
-    console.log('Airtable response:', text.substring(0, 200));
-    const data = JSON.parse(text);
+
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: err });
+    }
+
+    const data = await response.json();
     res.json(data);
   } catch (err) {
-    console.log('Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

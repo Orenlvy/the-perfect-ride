@@ -748,10 +748,10 @@ async function fetchRoutesFromAirtable(selections) {
     return aDiff - bDiff;
   });
 
-  // Return top 3 as ranked results
-  return routes.slice(0, 3).map((r, i) => ({
+  // Return ALL matching routes ranked by best fit
+  return routes.map((r, i) => ({
     rank: i + 1,
-    name: (r['File Name'] || r['Route Name'] || 'Unnamed Route').replace(/\.gpx$/i, ''),
+    name: (r['Route Name'] || r['File Name'] || 'Unnamed Route').replace(/\.gpx$/i, ''),
     distance: Math.round(parseFloat(r['Distance']) || 0),
     elevation: Math.round(parseFloat(r['Elevation Gain']) || 0),
     region: r['Region'] || 'Unknown',
@@ -895,6 +895,7 @@ export default function App() {
     area: "No Preference",
   });
   const [results, setResults] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(3);
   const [error, setError] = useState(null);
 
   const completedCount = [
@@ -964,6 +965,7 @@ export default function App() {
   const handleRestart = () => {
     setSelections({ time: null, terrain: null, climbing: null, group: null, area: "No Preference" });
     setResults([]);
+    setVisibleCount(3);
     setError(null);
     setScreen("questionnaire");
   };
@@ -1103,9 +1105,19 @@ export default function App() {
                 <div className="results-title">Your Perfect Rides</div>
               </div>
 
-              {results.map((route, i) => (
+              {results.slice(0, visibleCount).map((route, i) => (
                 <RouteCard key={route.rank} route={route} index={i} />
               ))}
+
+              {visibleCount < results.length && (
+                <button
+                  className="restart-btn"
+                  onClick={() => setVisibleCount(v => v + 3)}
+                  style={{ borderColor: '#D2A03C', color: '#D2A03C', marginBottom: 12 }}
+                >
+                  ↓ Load More Routes ({results.length - visibleCount} remaining)
+                </button>
+              )}
 
               <button className="restart-btn" onClick={handleRestart}>
                 ↺ Start Over with Different Preferences

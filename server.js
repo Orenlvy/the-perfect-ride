@@ -22,7 +22,7 @@ app.get('/api/routes', async (req, res) => {
   }
 
  try {
-    const url = `https://api.airtable.com/v0/${baseId}/${tableId}?pageSize=1`;
+    const url = `https://api.airtable.com/v0/${baseId}/${tableId}?pageSize=100`;
     console.log('Calling:', url);
     console.log('Token length:', token.length);
     const response = await fetch(url, {

@@ -751,7 +751,7 @@ async function fetchRoutesFromAirtable(selections) {
   // Return top 3 as ranked results
   return routes.slice(0, 3).map((r, i) => ({
     rank: i + 1,
-    name: r['Route Name'] || r['File Name'] || 'Unnamed Route',
+    name: (r['File Name'] || r['Route Name'] || 'Unnamed Route').replace(/\.gpx$/i, ''),
     distance: Math.round(parseFloat(r['Distance']) || 0),
     elevation: Math.round(parseFloat(r['Elevation Gain']) || 0),
     region: r['Region'] || 'Unknown',

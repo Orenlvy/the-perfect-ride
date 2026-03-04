@@ -610,6 +610,71 @@ const styles = `
     color: #888;
   }
 
+  /* MAP REGION SELECTOR */
+  .map-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .map-row {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .map-region {
+    flex: 1;
+    padding: 10px 8px;
+    background: #111;
+    border: 1px solid #1E1E1E;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .map-region:hover {
+    border-color: #D2A03C;
+    background: #161410;
+  }
+
+  .map-region.selected {
+    background: rgba(210, 160, 60, 0.12);
+    border-color: #D2A03C;
+  }
+
+  .map-region.any {
+    background: #0D0D0D;
+    border-style: dashed;
+    border-color: #2A2A2A;
+  }
+
+  .map-region.any.selected {
+    border-color: #D2A03C;
+    border-style: solid;
+  }
+
+  .map-region-icon {
+    font-size: 16px;
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .map-region-name {
+    font-size: 10px;
+    color: #888;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    line-height: 1.3;
+  }
+
+  .map-region.selected .map-region-name {
+    color: #D2A03C;
+  }
+
   /* ANIMATIONS */
   @keyframes fadeDown {
     from { opacity: 0; transform: translateY(-16px); }
@@ -731,8 +796,8 @@ async function fetchRoutesFromAirtable(selections) {
       if (climbRange.max && elev > climbRange.max) return false;
       if (climbRange.min && elev < climbRange.min) return false;
 
-      // Area filter
-      if (selections.area !== 'No Preference' && region !== selections.area) return false;
+      // Area filter — empty array = no preference
+      if (selections.area.length > 0 && !selections.area.includes(region)) return false;
 
       // Exclude international routes
       if (region === 'International') return false;
@@ -892,7 +957,7 @@ export default function App() {
     terrain: null,
     climbing: null,
     group: null,
-    area: "No Preference",
+    area: [],
   });
   const [results, setResults] = useState([]);
   const [visibleCount, setVisibleCount] = useState(3);
@@ -962,7 +1027,7 @@ export default function App() {
   };
 
   const handleRestart = () => {
-    setSelections({ time: null, terrain: null, climbing: null, group: null, area: "No Preference" });
+    setSelections({ time: null, terrain: null, climbing: null, group: null, area: [] });
     setResults([]);
     setVisibleCount(3);
     setError(null);
@@ -1047,15 +1112,111 @@ export default function App() {
               </QuestionCard>
 
               <QuestionCard number={4} title="📍 Any specific area preference?" delay={0.15}>
-                <select
-                  className="styled-select"
-                  value={selections.area}
-                  onChange={e => setSelections(s => ({ ...s, area: e.target.value }))}
-                >
-                  {AREAS.map(a => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
+                <div style={{ fontSize: 11, color: '#555', marginBottom: 10, letterSpacing: 0.5 }}>
+                  TAP TO SELECT · LEAVE EMPTY FOR ALL REGIONS
+                </div>
+                <div className="map-selector">
+                  {/* North */}
+                  <div className="map-row">
+                    <button
+                      className={`map-region ${selections.area.includes('Alon Hagalil') ? 'selected' : ''}`}
+                      onClick={() => setSelections(s => ({
+                        ...s, area: s.area.includes('Alon Hagalil')
+                          ? s.area.filter(a => a !== 'Alon Hagalil')
+                          : [...s.area, 'Alon Hagalil']
+                      }))}
+                    >
+                      <span className="map-region-icon">🌲</span>
+                      <span className="map-region-name">Alon Hagalil</span>
+                    </button>
+                    <button
+                      className={`map-region ${selections.area.includes('Golan Heights') ? 'selected' : ''}`}
+                      onClick={() => setSelections(s => ({
+                        ...s, area: s.area.includes('Golan Heights')
+                          ? s.area.filter(a => a !== 'Golan Heights')
+                          : [...s.area, 'Golan Heights']
+                      }))}
+                    >
+                      <span className="map-region-icon">🏔️</span>
+                      <span className="map-region-name">Golan Heights</span>
+                    </button>
+                  </div>
+                  {/* Carmel + Samaria */}
+                  <div className="map-row">
+                    <button
+                      className={`map-region ${selections.area.includes('Carmel') ? 'selected' : ''}`}
+                      onClick={() => setSelections(s => ({
+                        ...s, area: s.area.includes('Carmel')
+                          ? s.area.filter(a => a !== 'Carmel')
+                          : [...s.area, 'Carmel']
+                      }))}
+                    >
+                      <span className="map-region-icon">🌿</span>
+                      <span className="map-region-name">Carmel</span>
+                    </button>
+                    <button
+                      className={`map-region ${selections.area.includes('Samaria / Gilboa / Jordan Valley') ? 'selected' : ''}`}
+                      onClick={() => setSelections(s => ({
+                        ...s, area: s.area.includes('Samaria / Gilboa / Jordan Valley')
+                          ? s.area.filter(a => a !== 'Samaria / Gilboa / Jordan Valley')
+                          : [...s.area, 'Samaria / Gilboa / Jordan Valley']
+                      }))}
+                    >
+                      <span className="map-region-icon">⛰️</span>
+                      <span className="map-region-name">Samaria / Gilboa</span>
+                    </button>
+                  </div>
+                  {/* Center */}
+                  <div className="map-row">
+                    <button
+                      className={`map-region ${selections.area.includes('Pardes Hana / Hadera') ? 'selected' : ''}`}
+                      onClick={() => setSelections(s => ({
+                        ...s, area: s.area.includes('Pardes Hana / Hadera')
+                          ? s.area.filter(a => a !== 'Pardes Hana / Hadera')
+                          : [...s.area, 'Pardes Hana / Hadera']
+                      }))}
+                    >
+                      <span className="map-region-icon">🏙️</span>
+                      <span className="map-region-name">Pardes Hana / Hadera</span>
+                    </button>
+                    <button
+                      className={`map-region ${selections.area.includes('Jerusalem Hills / Judean Desert') ? 'selected' : ''}`}
+                      onClick={() => setSelections(s => ({
+                        ...s, area: s.area.includes('Jerusalem Hills / Judean Desert')
+                          ? s.area.filter(a => a !== 'Jerusalem Hills / Judean Desert')
+                          : [...s.area, 'Jerusalem Hills / Judean Desert']
+                      }))}
+                    >
+                      <span className="map-region-icon">🪨</span>
+                      <span className="map-region-name">Jerusalem Hills</span>
+                    </button>
+                  </div>
+                  {/* South */}
+                  <div className="map-row">
+                    <button
+                      className={`map-region ${selections.area.includes('Lahav / Rimon Forest') ? 'selected' : ''}`}
+                      onClick={() => setSelections(s => ({
+                        ...s, area: s.area.includes('Lahav / Rimon Forest')
+                          ? s.area.filter(a => a !== 'Lahav / Rimon Forest')
+                          : [...s.area, 'Lahav / Rimon Forest']
+                      }))}
+                    >
+                      <span className="map-region-icon">🌾</span>
+                      <span className="map-region-name">Lahav / Rimon</span>
+                    </button>
+                    <button
+                      className={`map-region ${selections.area.includes('South (Beer Sheva - Eilat)') ? 'selected' : ''}`}
+                      onClick={() => setSelections(s => ({
+                        ...s, area: s.area.includes('South (Beer Sheva - Eilat)')
+                          ? s.area.filter(a => a !== 'South (Beer Sheva - Eilat)')
+                          : [...s.area, 'South (Beer Sheva - Eilat)']
+                      }))}
+                    >
+                      <span className="map-region-icon">🏜️</span>
+                      <span className="map-region-name">South / Negev</span>
+                    </button>
+                  </div>
+                </div>
               </QuestionCard>
 
               <div className="submit-section">

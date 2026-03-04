@@ -21,20 +21,20 @@ app.get('/api/routes', async (req, res) => {
     return res.status(500).json({ error: 'Missing Airtable credentials' });
   }
 
-  try {
-    const url = `https://api.airtable.com/v0/${baseId}/${tableId}?pageSize=100`;
+ try {
+    const url = `https://api.airtable.com/v0/${baseId}/${tableId}?pageSize=1`;
+    console.log('Calling:', url);
+    console.log('Token length:', token.length);
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` }
     });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: err });
-    }
-
-    const data = await response.json();
+    console.log('Airtable status:', response.status);
+    const text = await response.text();
+    console.log('Airtable response:', text.substring(0, 200));
+    const data = JSON.parse(text);
     res.json(data);
   } catch (err) {
+    console.log('Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

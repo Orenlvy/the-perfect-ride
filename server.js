@@ -32,6 +32,9 @@ app.get('/api/routes', async (req, res) => {
     }
 
     const data = await response.json();
+    if (data.records && data.records[0]) 
+	console.log('Fields:', JSON.stringify(Object.keys(data.records[0].fields)));
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

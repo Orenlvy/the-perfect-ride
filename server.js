@@ -56,7 +56,11 @@ app.get('/api/weather', async (req, res) => {
     // Get tomorrow's forecast (first entries ~24hrs ahead)
     const tomorrow = data.list.slice(2, 6);
     const temps = tomorrow.map(f => f.main.temp);
-    const rain = tomorrow.some(f => f.rain || f.weather[0].main === 'Rain');
+    const rain = tomorrow.some(f => 
+      (f.rain && f.rain['3h'] > 0.5) || 
+      f.weather[0].main === 'Rain' || 
+      f.weather[0].main === 'Thunderstorm'
+    );
     const desc = tomorrow[0]?.weather[0]?.description || 'unknown';
     const wind = Math.max(...tomorrow.map(f => f.wind.speed)) * 3.6; // m/s to km/h
 

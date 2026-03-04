@@ -784,7 +784,7 @@ function OptionButton({ option, selected, onClick }) {
 function QuestionCard({ number, title, children, delay = 0 }) {
   return (
     <div className="question-card" style={{ animationDelay: `${delay}s` }}>
-      <div className="question-number">Question {number} / 5</div>
+      <div className="question-number">Question {number} / 4</div>
       <div className="question-title">{title}</div>
       {children}
     </div>
@@ -902,12 +902,11 @@ export default function App() {
     selections.time,
     selections.terrain,
     selections.climbing,
-    selections.group,
   ].filter(Boolean).length;
 
-  const progress = (completedCount / 4) * 100;
+  const progress = (completedCount / 3) * 100;
 
-  const canSubmit = selections.time && selections.terrain && selections.climbing && selections.group;
+  const canSubmit = selections.time && selections.terrain && selections.climbing;
 
   const handleSubmit = async () => {
     setScreen("loading");
@@ -994,7 +993,7 @@ export default function App() {
             <>
               <div className="progress-bar">
                 <div className="progress-labels">
-                  {["Time", "Terrain", "Climbing", "Group", "Area"].map((l, i) => (
+                  {["Time", "Terrain", "Climbing", "Area"].map((l, i) => (
                     <span
                       key={l}
                       className={`progress-label ${i < completedCount ? "active" : ""}`}
@@ -1047,20 +1046,7 @@ export default function App() {
                 </div>
               </QuestionCard>
 
-              <QuestionCard number={4} title="👥 Riding solo or with group?" delay={0.15}>
-                <div className="options-grid cols-2">
-                  {GROUP_OPTIONS.map(o => (
-                    <OptionButton
-                      key={o.id}
-                      option={o}
-                      selected={selections.group === o.id}
-                      onClick={v => setSelections(s => ({ ...s, group: v }))}
-                    />
-                  ))}
-                </div>
-              </QuestionCard>
-
-              <QuestionCard number={5} title="📍 Any specific area preference?" delay={0.2}>
+              <QuestionCard number={4} title="📍 Any specific area preference?" delay={0.15}>
                 <select
                   className="styled-select"
                   value={selections.area}
